@@ -1,5 +1,6 @@
-# sudo mn --custom ~/Desktop/parte1.py --topo customTopo --arp --mac --switch ovsk
-
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# sudo mn --custom ./Parte1/parte1.py --topo customTopo --arp --mac --switch ovsk
 from mininet.topo import Topo
 
 import math
@@ -74,4 +75,8 @@ class MyTopo( Topo ):
         addEdges(self, layers)
         addHosts(self, layers, createHosts(self, 5))
 
-topos = { ’customTopo ’: MyTopo }
+
+topos= {'customTopo': MyTopo}
+
+
+
