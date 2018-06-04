@@ -65,15 +65,16 @@ def addHosts(self, layers, hosts):
 class MyTopo( Topo ):
     "Simple topology example."
 
-    def __init__( self ):
+    def __init__( self,layers, hosts):
         "Create custom topo."
-
+	print "Layers ",layers
+	print "Hosts ",hosts
         # Initialize topology
         Topo.__init__( self )
 
-        layers = createLayers(self, 3)
+        layers = createLayers(self, layers)
         addEdges(self, layers)
-        addHosts(self, layers, createHosts(self, 5))
+        addHosts(self, layers, createHosts(self, hosts))
 
 
 topos= {'customTopo': MyTopo}
