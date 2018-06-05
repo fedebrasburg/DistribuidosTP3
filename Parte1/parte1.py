@@ -55,7 +55,7 @@ def createHosts(self, hostsAmount):
 
 def addHosts(self, layers, hosts):
     for i in range(len(hosts)):
-        if ( i <= len(hosts)/2 ):
+        if ( i %2==0 ):
             self.addLink(hosts[i], layers[0][0])
         else:
             self.addLink(hosts[i], layers[len(layers)-1][0])
