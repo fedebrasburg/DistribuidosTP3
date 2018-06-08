@@ -12,6 +12,7 @@ from pox.lib.revent import *
 from pox.lib.util import dpidToStr
 from pox.lib.addresses import EthAddr
 from collections import namedtuple
+import pox.lib.packet as pkt
 import os
 ''' Add your imports here ... '''
 
@@ -60,9 +61,9 @@ class Rule:
         tcp = packet.find("tcp")
         if tcp is None:
             return True
-        if self._match.tcp_src is not None and self._match.tcp_src != tcp.tcp.srcport:
+        if self._match.tcp_src is not None and self._match.tcp_src != tcp.srcport:
             return False
-        if self._match.tcp_dst is not None and self._match.tcp_dst != tcp.tcp.dstport:
+        if self._match.tcp_dst is not None and self._match.tcp_dst != tcp.dstport:
             return False
         return True
 
@@ -104,11 +105,27 @@ class Firewall (EventMixin):
     def __init__ (self):
         self.listenTo(core.openflow)
         log.debug("Enabling Firewall Module")
+ 	"""
+	thirdRule2=Rule()
+	thirdRule2.ip("10.0.0.3","10.0.0.4",None)
+	thirdRule2.allow(False)
+	thirdRule1=Rule()
+	thirdRule1.ip("10.0.0.4","10.0.0.3",None)
+	thirdRule1.allow(False)
+	thirdRule1.next(thirdRule2)
 
+	secondRule=Rule()
+	secondRule.tcp(None,"80")
+	secondRule.allow(False)
+	
+	secondRule.next(thirdRule1)
+	"""
         #TODO: Config rules
-        self._chain = Rule()
-        self._chain.ip("10.0.0.1", "10.0.0.2", None)
+	self._chain = Rule()
+        self._chain.ip("10.0.0.1", None,  pkt.ipv4.UDP_PROTOCOL) 
+	self._chain.tcp(None,"5001")
         self._chain.allow(False)
+	#self._chain.next(secondRule)
 
     def _handle_PacketIn (self, event):
         self.learn(event.parsed)
