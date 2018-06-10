@@ -142,10 +142,17 @@ class Firewall (EventMixin):
         """
 
         #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma	
-        self._chain = Rule()
-        self._chain.ip("10.0.0.1", "10.0.0.2", None)
-        self._chain.allow(False)
+        rule1 = Rule()
+        rule1.ip("10.0.0.1", "10.0.0.2", None)
+        rule1.allow(False)
 
+        rule2 = Rule()
+        rule2.ip("10.0.0.2", "10.0.0.1", None)
+        rule2.allow(False)
+
+        self._chain = rule1
+        self._chain.next(rule2)
+        
     def _handle_PacketIn (self, event):
         allowed = self.is_allowed(event.parsed)
         if allowed:
