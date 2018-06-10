@@ -91,7 +91,7 @@ class Rule:
 
     def is_allowed (self, packet):
         if self.match(packet):
-            return self._allow and self._next.is_allowed(packet)
+            return self._allow
         else:
             return self._next.is_allowed(packet)
 
@@ -120,36 +120,81 @@ class Firewall (EventMixin):
 	
 	secondRule.next(thirdRule1)
 	"""
-        #TODO: Config rules
-	self._chain = Rule()
-        self._chain.ip("10.0.0.1", None,  pkt.ipv4.UDP_PROTOCOL) 
-	self._chain.tcp(None,"5001")
+        #1. Se deben descartar todos los mensajes cuyo puerto destino sea 80
+        """
+        self._chain = Rule()
+        self._chain.tcp(None, "80")
         self._chain.allow(False)
-	#self._chain.next(secondRule)
+        """
+
+        #2. Se deben descartar todos los mensajes que provengan del host 1, tengan como puerto destino el 5001, y esten utilizando el protocolo UDP
+        """
+        self._chain = Rule()
+        self._chain.ip("10.0.0.1", None,  pkt.ipv4.UDP_PROTOCOL) 
+        self._chain.tcp(None,"5001")
+        self._chain.allow(False)
+        """
+
+        #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma	
+        self._chain = Rule()
+        self._chain.ip("10.0.0.1", "10.0.0.2", None)
+        self._chain.allow(False)
 
     def _handle_PacketIn (self, event):
-        self.learn(event.parsed)
-        if self.is_allowed(event.parsed):
+        allowed = self.is_allowed(event.parsed)
+        if allowed:
             self.send(event)
+        self.log(event.parsed, allowed)
         
     def _handle_ConnectionUp (self, event):
         return
 
-    def learn (self, packet):
-        #TODO: Add to table
-        return
-
     def send (self, event):
-        #TODO: Use table
         msg = of.ofp_packet_out()
         msg.data = event.ofp
         msg.actions.append(of.ofp_action_output(port = of.OFPP_ALL))
         event.connection.send(msg)
 
-    def is_allowed(self, packet):
+    def is_allowed (self, packet):
         return self._chain.is_allowed(packet)
 
+    def log (self, packet, allowed):
+        tcp = self.log_tcp(packet)
+        ip = self.log_ip(packet)
+        ethernet = self.log_ethernet(packet)
+        if allowed:
+            log.debug("[ALLOWED]: %s %s %s" % (tcp, ip, ethernet))
+        else:
+            log.debug("[DISCARDED]: %s %s %s" % (tcp, ip, ethernet))
 
+    def log_tcp (self, packet):
+        tcp = packet.find("tcp")
+        if tcp is None:
+            return ""
+        else:
+            return "[TCP.port]: %s -> %s" % (tcp.srcport, tcp.dstport)
+
+    def log_ip (self, packet):
+        ip = packet.find("ipv4")
+        if ip is None:
+            return ""
+        elif ip.protocol == pkt.ipv4.TCP_PROTOCOL:
+	    return "[IP.TCP]: %s -> %s" % (ip.srcip, ip.dstip)
+        elif ip.protocol == pkt.ipv4.UDP_PROTOCOL:
+            return "[IP.UDP]: %s -> %s" % (ip.srcip, ip.dstip)
+        elif ip.protocol == pkt.ipv4.ICMP_PROTOCOL:
+            return "[IP.ICPM]: %s -> %s" % (ip.srcip, ip.dstip)
+        elif ip.protocol == pkt.ipv4.IGMP_PROTOCOL:
+            return "[IP.IGMP]: %s -> %s" % (ip.srcip, ip.dstip)
+        else:
+            return ""
+
+    def log_ethernet (self, packet):
+        ethernet = packet.find("ethernet")
+        if ethernet is None:
+            return ""
+        return "[ETHERNET.%s]: %s -> %s" % (pkt.ETHERNET.ethernet.getNameForType(ethernet.type), ethernet.src, ethernet.dst)
+   
 def launch ():
     '''
     Starting the Firewall module
