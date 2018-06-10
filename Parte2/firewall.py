@@ -49,45 +49,51 @@ class Rule:
         self._next = rule
 
     def match (self, packet):
-        if not self.match_tcp(packet):
-            return False
-        if not self.match_ip(packet):
-            return False
-        if not self.match_ethernet(packet):
-            return False
-        return True
+        return self.match_tcp(packet) and self.match_ip(packet) and self.match_ethernet(packet)
 
     def match_tcp (self, packet):
         tcp = packet.find("tcp")
         if tcp is None:
+            return not self.requires_tcp_match()
+        elif self._match.tp_src is not None and self._match.tp_src != tcp.srcport:
+            return False
+        elif self._match.tp_dst is not None and self._match.tp_dst != tcp.dstport:
+            return False
+        else:
             return True
-        if self._match.tcp_src is not None and self._match.tcp_src != tcp.srcport:
-            return False
-        if self._match.tcp_dst is not None and self._match.tcp_dst != tcp.dstport:
-            return False
-        return True
 
     def match_ip (self, packet):
         ip = packet.find("ipv4")
         if ip is None:
+            return not self.requires_ip_match()
+        elif self._match.nw_src is not None and self._match.nw_src != ip.srcip:
+            return False
+        elif self._match.nw_dst is not None and self._match.nw_dst != ip.dstip:
+            return False
+        elif self._match.nw_proto is not None and self._match.nw_proto != ip.protocol:
+            return False
+        else:
             return True
-        if self._match.nw_src is not None and self._match.nw_src != ip.srcip:
-            return False
-        if self._match.nw_dst is not None and self._match.nw_dst != ip.dstip:
-            return False
-        if self._match.nw_proto is not None and self._match.nw_proto != ip.protocol:
-            return False
-        return True
 
     def match_ethernet (self, packet):
         ethernet = packet.find("ethernet")
         if ethernet is None:
+            return not self.requires_ethernet_match()
+        elif self._match.dl_src is not None and self._match.dl_src != ethernet.src:
+            return False
+        elif self._match.dl_dst is not None and self._match.dl_dst != ethernet.dst:
+            return False
+        else:
             return True
-        if self._match.dl_src is not None and self._match.dl_src != ethernet.src:
-            return False
-        if self._match.dl_dst is not None and self._match.dl_dst != ethernet.dst:
-            return False
-        return True
+
+    def requires_tcp_match (self):
+        return self._match.tp_src is not None or self._match.tp_dst is not None
+
+    def requires_ip_match (self):
+        return self._match.nw_src is not None or self._match.nw_dst is not None or self._match.nw_proto is not None
+
+    def requires_ethernet_match (self):
+        return self._match.dl_src is not None or self._match.dl_dst is not None
 
     def is_allowed (self, packet):
         if self.match(packet):
