@@ -30,8 +30,8 @@ class Rule:
         self._allow = True
 
     def tcp (self, src, dst):
-        self._match.tcp_src = src
-        self._match.tcp_dst = dst
+        self._match.tp_src = src
+        self._match.tp_dst = dst
 
     def ip (self, src, dst, proto):
         self._match.nw_src = src
@@ -47,6 +47,7 @@ class Rule:
 
     def next (self, rule):
         self._next = rule
+        return rule
 
     def match (self, packet):
         return self.match_tcp(packet) and self.match_ip(packet) and self.match_ethernet(packet)
@@ -55,9 +56,9 @@ class Rule:
         tcp = packet.find("tcp")
         if tcp is None:
             return not self.requires_tcp_match()
-        elif self._match.tcp_src is not None and self._match.tcp_src != tcp.srcport:
+        elif self._match.tp_src is not None and self._match.tp_src != tcp.srcport:
             return False
-        elif self._match.tcp_dst is not None and self._match.tcp_dst != tcp.dstport:
+        elif self._match.tp_dst is not None and self._match.tp_dst != tcp.dstport:
             return False
         else:
             return True
@@ -87,7 +88,7 @@ class Rule:
             return True
 
     def requires_tcp_match (self):
-        return self._match.tcp_src is not None or self._match.tcp_dst is not None
+        return self._match.tp_src is not None or self._match.tp_dst is not None
 
     def requires_ip_match (self):
         return self._match.nw_src is not None or self._match.nw_dst is not None or self._match.nw_proto is not None
@@ -106,43 +107,22 @@ class Rule:
         def is_allowed(self, packet):
             return True
 
-class Chain ():
-    def __init__(self):
-        self.head = None
-        self.last = None
-
-    def addAtFrist(self, rule):
-        if( self.head == None and self.last == None):
-            self.last = rule
-        elif(self.head == self.last):
-            rule.next(self.last)
-        else:
-            rule.next(self.head)
-        self.head = rule
-
-    def is_allowed(self, packet):
-        return self.head.is_allowed(packet)
-
-
 class Firewall (EventMixin):
 
     def __init__ (self):
         self.listenTo(core.openflow)
         log.debug("Enabling Firewall Module")
 
-        self._chain = Chain()
         #1. Se deben descartar todos los mensajes cuyo puerto destino sea 80
         rule1 = Rule()
         rule1.tcp(None, "80")
         rule1.allow(False)
-        self._chain.addAtFrist(rule1)
 
         #2. Se deben descartar todos los mensajes que provengan del host 1, tengan como puerto destino el 5001, y esten utilizando el protocolo UDP
         rule2 = Rule()
         rule2.ip("10.0.0.1", None,  pkt.ipv4.UDP_PROTOCOL) 
         rule2.tcp(None,"5001")
         rule2.allow(False)
-        self._chain.addAtFrist(rule2)
 
         #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma
         rule3 = Rule()
@@ -153,8 +133,8 @@ class Firewall (EventMixin):
         rule4.ip("10.0.0.2", "10.0.0.1", None)
         rule4.allow(False)
 
-        self._chain.addAtFrist(rule3)
-        self._chain.addAtFrist(rule4)
+        self._chain = rule1
+        self._chain.next(rule2).next(rule3).next(rule4)
         
     def _handle_PacketIn (self, event):
         allowed = self.is_allowed(event.parsed)
