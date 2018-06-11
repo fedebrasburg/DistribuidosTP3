@@ -133,15 +133,6 @@ class Firewall (EventMixin):
         rule4.ip("10.0.0.2", "10.0.0.1", None)
         rule4.allow(False)
 
-        #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma
-        rule3 = Rule()
-        rule3.ip("10.0.0.1", "10.0.0.2", None)
-        rule3.allow(False)
-
-        rule4 = Rule()
-        rule4.ip("10.0.0.2", "10.0.0.1", None)
-        rule4.allow(False)
-
         self._chain = rule1
         self._chain.next(rule2).next(rule3).next(rule4)
         
