@@ -115,7 +115,7 @@ class Firewall (EventMixin):
 
         #1. Se deben descartar todos los mensajes cuyo puerto destino sea 80
         rule1 = Rule()
-        rule1.tcp(None, "80")
+        rule1.tcp(None, 80)
         rule1.allow(False)
 
         #2. Se deben descartar todos los mensajes que provengan del host 1, tengan como puerto destino el 5001, y esten utilizando el protocolo UDP
@@ -123,6 +123,15 @@ class Firewall (EventMixin):
         rule2.ip("10.0.0.1", None,  pkt.ipv4.UDP_PROTOCOL) 
         rule2.tcp(None,"5001")
         rule2.allow(False)
+
+        #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma
+        rule3 = Rule()
+        rule3.ip("10.0.0.1", "10.0.0.2", None)
+        rule3.allow(False)
+
+        rule4 = Rule()
+        rule4.ip("10.0.0.2", "10.0.0.1", None)
+        rule4.allow(False)
 
         #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma
         rule3 = Rule()
