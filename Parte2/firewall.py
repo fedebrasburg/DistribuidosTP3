@@ -28,6 +28,11 @@ class Rule:
         self._match = of.ofp_match()
         self._next = Rule.DummyRule()
         self._allow = True
+    
+    def udp (self, src, dst):
+        self._match.tp_src = src
+        self._match.tp_dst = dst
+
 
     def tcp (self, src, dst):
         self._match.tp_src = src
@@ -50,7 +55,17 @@ class Rule:
         return rule
 
     def match (self, packet):
-        return self.match_tcp(packet) and self.match_ip(packet) and self.match_ethernet(packet)
+        return self.match_tcp(packet) and self.match_ip(packet) and self.match_ethernet(packet) and self.match_udp(packet)
+
+    def match_udp (self, packet):
+        udp = packet.find("udp")
+	if udp is None:
+	     return not self.requires_udp_match()
+	elif self._match.tp_src is not None and self._match.tp_src != udp.srcport:
+            return False
+        elif self._match.tp_dst is not None and self._match.tp_dst != udp.dstport:
+            return False
+        return True
 
     def match_tcp (self, packet):
         tcp = packet.find("tcp")
@@ -60,8 +75,9 @@ class Rule:
             return False
         elif self._match.tp_dst is not None and self._match.tp_dst != tcp.dstport:
             return False
-        else:
-            return True
+        return True
+
+
 
     def match_ip (self, packet):
         ip = packet.find("ipv4")
@@ -88,6 +104,9 @@ class Rule:
             return True
 
     def requires_tcp_match (self):
+        return self._match.tp_src is not None or self._match.tp_dst is not None
+
+    def requires_udp_match (self):
         return self._match.tp_src is not None or self._match.tp_dst is not None
 
     def requires_ip_match (self):
@@ -121,7 +140,7 @@ class Firewall (EventMixin):
         #2. Se deben descartar todos los mensajes que provengan del host 1, tengan como puerto destino el 5001, y esten utilizando el protocolo UDP
         rule2 = Rule()
         rule2.ip("10.0.0.1", None,  pkt.ipv4.UDP_PROTOCOL) 
-        rule2.tcp(None,"5001")
+        rule2.udp(None,5001)
         rule2.allow(False)
 
         #3. Debe elegir dos host cualquiera y los mismos no deben poder comunicarse de ninguna forma
@@ -132,6 +151,7 @@ class Firewall (EventMixin):
         rule4 = Rule()
         rule4.ip("10.0.0.2", "10.0.0.1", None)
         rule4.allow(False)
+	
 
         self._chain = rule1
         self._chain.next(rule2).next(rule3).next(rule4)
@@ -156,12 +176,26 @@ class Firewall (EventMixin):
 
     def log (self, packet, allowed):
         tcp = self.log_tcp(packet)
+	udp = self.log_udp(packet)
+	pckt=""
+	if tcp != "":
+            pckt=tcp
+	if udp != "":
+	    pckt=udp
         ip = self.log_ip(packet)
         ethernet = self.log_ethernet(packet)
         if allowed:
-            log.debug("[ALLOWED]: %s %s %s" % (tcp, ip, ethernet))
+            log.debug("[ALLOWED]: %s %s %s" % (pckt, ip, ethernet))
         else:
-            log.debug("[DISCARDED]: %s %s %s" % (tcp, ip, ethernet))
+            log.debug("[DISCARDED]: %s %s %s" % (pckt, ip, ethernet))
+
+    def log_udp (self, packet):
+        udp = packet.find("udp")
+        if udp is None:
+            return ""
+        else:
+            return "[UDP.port]: %s -> %s" % (udp.srcport, udp.dstport)
+
 
     def log_tcp (self, packet):
         tcp = packet.find("tcp")
